@@ -19,4 +19,5 @@ var routes = []route{
 	// notifications
 	newRoute(http.MethodPut, "/v1/payment/pay", controllers.PaymentPayV1),
 	newRoute(http.MethodPut, "/v1/payment/rollback", controllers.RollbackPaymentV1),
+	newRoute(http.MethodPut, "/v1/payment/deposit", controllers.DepositV1),
 }

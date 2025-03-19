@@ -8,7 +8,3 @@ type Account struct {
 	Updated int     `json:"updated"`
 	Active  uint8   `json:"completed"`
 }
-
-type Deposit struct {
-	Amount float32 `json:"amount"`
-}

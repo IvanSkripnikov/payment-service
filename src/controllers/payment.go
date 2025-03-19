@@ -23,3 +23,12 @@ func RollbackPaymentV1(w http.ResponseWriter, r *http.Request) {
 		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/payment/rollback")
 	}
 }
+
+func DepositV1(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPut:
+		helpers.Deposit(w, r)
+	default:
+		helpers.FormatResponse(w, http.StatusMethodNotAllowed, "/v1/payment/pay")
+	}
+}
