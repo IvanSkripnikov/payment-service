@@ -2,12 +2,14 @@ package helpers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"payment-service/models"
 
 	"github.com/IvanSkripnikov/go-gormdb"
 	"github.com/IvanSkripnikov/go-logger"
+	"gorm.io/gorm"
 )
 
 func PayPayment(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +31,7 @@ func PayPayment(w http.ResponseWriter, r *http.Request) {
 	newPayment := models.Payment{UserID: paymentParams.UserID, Type: models.TypePayment, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp())}
 
 	if response != models.Success {
-		response = "failure"
+		response = models.Failure
 	} else {
 		newPayment.Status = 1
 	}
@@ -65,7 +67,7 @@ func RollbackPayment(w http.ResponseWriter, r *http.Request) {
 	newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp())}
 
 	if response != models.Success {
-		response = "failure"
+		response = models.Failure
 	} else {
 		newDeposit.Status = 1
 	}
@@ -92,27 +94,51 @@ func Deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Производим начисление средств через сервис платежей
-	response := models.Success
-	newDepositObject := models.Account{UserID: paymentParams.UserID, Balance: paymentParams.Amount}
-	newDepositResponse, err := CreateQueryWithScalarResponse(http.MethodPut, Config.BillingServiceUrl+"/v1/account/deposit", newDepositObject)
-	if checkError(w, err, category) || newDepositResponse != models.Success {
-		response = models.Failure
-	}
-
-	newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp())}
-
-	if response != models.Success {
-		response = "failure"
-	} else {
-		newDeposit.Status = 1
-	}
-
-	// записываем сообщение в БД
+	var newDeposit models.Payment
+	var uniquePayment models.UniquePayment
 	db := gormdb.GetClient(models.ServiceDatabase)
-	err = db.Create(&newDeposit).Error
-	if err != nil {
-		logger.Errorf("Cant create deposit %v", err)
+	err = db.Where("request_id = ?", paymentParams.RequestID).First(&newDeposit).Error
+
+	// такого депозита раньше не было, создаём новый, иначе возвращаем его результат
+	response := models.Success
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Производим начисление средств через сервис платежей
+		response := models.Success
+		newDepositObject := models.Account{UserID: paymentParams.UserID, Balance: paymentParams.Amount}
+		newDepositResponse, err := CreateQueryWithScalarResponse(http.MethodPut, Config.BillingServiceUrl+"/v1/account/deposit", newDepositObject)
+		if checkError(w, err, category) || newDepositResponse != models.Success {
+			response = models.Failure
+		}
+
+		newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp()), RequestID: paymentParams.RequestID}
+
+		if response != models.Success {
+			response = models.Failure
+		} else {
+			newDeposit.Status = 1
+		}
+
+		// записываем сообщение в БД
+		err = db.Create(&newDeposit).Error
+		if err != nil {
+			logger.Errorf("Cant create deposit %v", err)
+			response = models.Failure
+		}
+
+		// создаём запись с уникальным ID от пользователя
+		uniquePayment.RequestID = paymentParams.RequestID
+		uniquePayment.Response = response
+		err = db.Create(&uniquePayment).Error
+		if err != nil {
+			logger.Errorf("Cant create unique payment record %v", err)
+			response = models.Failure
+		}
+	} else {
+		err = db.Where("request_id = ?", paymentParams.RequestID).First(&uniquePayment).Error
+		if checkError(w, err, category) {
+			return
+		}
+		response = uniquePayment.Response
 	}
 
 	data := ResponseData{

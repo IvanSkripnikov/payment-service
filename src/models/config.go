@@ -38,5 +38,6 @@ func GetRequiredVariables() []string {
 func GetModels() []schema.Tabler {
 	return []schema.Tabler{
 		Payment{},
+		UniquePayment{},
 	}
 }
