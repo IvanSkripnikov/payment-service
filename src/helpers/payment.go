@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"payment-service/models"
 
@@ -143,6 +144,26 @@ func Deposit(w http.ResponseWriter, r *http.Request) {
 
 	data := ResponseData{
 		"response": response,
+	}
+	SendResponse(w, data, category, http.StatusOK)
+}
+
+func GetDepositsByUser(w http.ResponseWriter, r *http.Request) {
+	category := "/v1/payment/get-deposits-by-user"
+	var deposits []models.Payment
+
+	userID, err := getIDFromRequestString(strings.TrimSpace(r.URL.Path))
+	if checkError(w, err, category) {
+		return
+	}
+
+	err = GormDB.Where("user_id = ? AND type = ?", userID, models.TypeDeposit).Find(&deposits).Error
+	if checkError(w, err, category) && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return
+	}
+
+	data := ResponseData{
+		"response": deposits,
 	}
 	SendResponse(w, data, category, http.StatusOK)
 }
