@@ -29,7 +29,7 @@ func PayPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newPayment := models.Payment{UserID: paymentParams.UserID, Type: models.TypePayment, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp())}
+	newPayment := models.Payment{UserID: paymentParams.UserID, Type: models.TypePayment, Amount: paymentParams.Amount, Created: GetCurrentDate()}
 
 	if response != models.Success {
 		response = models.Failure
@@ -65,7 +65,7 @@ func RollbackPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp())}
+	newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: GetCurrentDate()}
 
 	if response != models.Success {
 		response = models.Failure
@@ -111,7 +111,7 @@ func Deposit(w http.ResponseWriter, r *http.Request) {
 			response = models.Failure
 		}
 
-		newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: int(GetCurrentTimestamp()), RequestID: paymentParams.RequestID}
+		newDeposit := models.Payment{UserID: paymentParams.UserID, Type: models.TypeDeposit, Amount: paymentParams.Amount, Created: GetCurrentDate(), RequestID: paymentParams.RequestID}
 
 		if response != models.Success {
 			response = models.Failure
